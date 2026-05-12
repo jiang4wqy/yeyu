@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>夜语 — 你的梦境与命运解读</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- 粒子背景 -->
+    <canvas id="particles"></canvas>
+
+    <div class="app-container">
+        <!-- 头部 -->
+        <header class="app-header">
+            <h1 class="logo">夜 语</h1>
+            <p class="subtitle">一面镜子，映出你心底的潮汐</p>
+        </header>
+
+        <!-- 场景 Tab 切换 -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="dream">🌌 解梦</button>
+            <button class="tab-btn" data-tab="fortune">🔮 今日签</button>
+            <button class="tab-btn" data-tab="personality">⭐ 自我画像</button>
+            <button class="tab-btn" data-tab="settings">⚙️ 设置</button>
+        </nav>
+
+        <!-- 风格选择器（全局） -->
+        <div class="style-selector">
+            <span class="style-label">解读风格</span>
+            <div class="style-options">
+                <label class="style-opt" data-style="温柔派">
+                    <input type="radio" name="style" value="温柔派" checked>
+                    <span class="style-chip">🌙 温柔派</span>
+                </label>
+                <label class="style-opt" data-style="锐利派">
+                    <input type="radio" name="style" value="锐利派">
+                    <span class="style-chip">🪞 锐利派</span>
+                </label>
+                <label class="style-opt" data-style="玄学派">
+                    <input type="radio" name="style" value="玄学派">
+                    <span class="style-chip">📜 玄学派</span>
+                </label>
+                <label class="style-opt" data-style="现代派">
+                    <input type="radio" name="style" value="现代派">
+                    <span class="style-chip">☕ 现代派</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- ========== 场景一：解梦 ========== -->
+        <section class="tab-panel active" id="panel-dream">
+            <div class="card input-card">
+                <label class="input-label" for="dream-input">
+                    描述你的梦境，越具体越好——
+                </label>
+                <textarea id="dream-input" rows="6"
+                    placeholder="比如：我梦见自己在一个下着雨的陌生城市里追一辆永远追不上的公交车…"></textarea>
+                <button class="submit-btn" data-action="dream">
+                    <span class="btn-text">解读我的梦</span>
+                    <span class="btn-icon">→</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- ========== 场景二：今日签 ========== -->
+        <section class="tab-panel" id="panel-fortune">
+            <div class="card input-card">
+                <label class="input-label" for="fortune-input">
+                    今天有什么想问问的？（可以不填）
+                </label>
+                <textarea id="fortune-input" rows="3"
+                    placeholder="比如：今天总感觉心里毛毛的，不知道为什么…"></textarea>
+                <button class="submit-btn" data-action="fortune">
+                    <span class="btn-text">抽取今日签</span>
+                    <span class="btn-icon">🔮</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- ========== 场景三：自我画像 ========== -->
+        <section class="tab-panel" id="panel-personality">
+            <div class="card input-card">
+                <div class="input-row">
+                    <div class="input-group">
+                        <label class="input-label" for="type-input">你的星座 / MBTI</label>
+                        <input type="text" id="type-input"
+                            placeholder="如：天蝎座 / INTJ / 双鱼座 + INFJ…">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label" for="aspect-select">想了解的方向</label>
+                        <select id="aspect-select">
+                            <option value="自我成长">自我成长</option>
+                            <option value="爱情">爱情</option>
+                            <option value="事业">事业</option>
+                            <option value="友谊">友谊</option>
+                            <option value="盲点">盲点</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="submit-btn" data-action="personality">
+                    <span class="btn-text">开始解读</span>
+                    <span class="btn-icon">→</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- ========== 设置面板 ========== -->
+        <section class="tab-panel" id="panel-settings">
+            <div class="card input-card">
+                <div class="input-group">
+                    <label class="input-label" for="api-key-input">DeepSeek API Key</label>
+                    <input type="password" id="api-key-input" placeholder="sk-…">
+                    <p class="hint">仅保存在浏览器本地，不会上传到任何服务器。</p>
+                </div>
+                <div class="input-group">
+                    <label class="input-label" for="api-url-input">API 地址</label>
+                    <input type="text" id="api-url-input" value="/api" placeholder="/api">
+                    <p class="hint">默认使用后端代理，也可填入 DeepSeek 直连地址。</p>
+                </div>
+                <button class="submit-btn" data-action="save-settings">
+                    <span class="btn-text">保存设置</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- ========== 加载动画 ========== -->
+        <div class="loading-overlay" id="loading-overlay">
+            <div class="loading-spinner">
+                <div class="moon-loader"></div>
+                <p>夜语正在倾听…</p>
+            </div>
+        </div>
+
+        <!-- ========== 结果面板 ========== -->
+        <div class="result-overlay" id="result-overlay">
+            <div class="result-card" id="result-card">
+                <button class="close-btn" id="close-result">✕</button>
+                <div class="result-header">
+                    <h2 id="result-title"></h2>
+                    <div class="result-keywords" id="result-keywords"></div>
+                </div>
+                <div class="result-body" id="result-body"></div>
+                <div class="share-card" id="share-card">
+                    <p id="share-quote"></p>
+                    <button class="copy-btn" id="copy-share">📋 复制分享卡片</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
