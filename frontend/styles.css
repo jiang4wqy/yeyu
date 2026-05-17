@@ -1,0 +1,385 @@
+/* ============================================
+   夜语 Night Whisper — Global Styles
+   月光琉璃 · 靛青 + 月白 + 雾面玻璃 + 微金
+   ============================================ */
+
+:root {
+  /* 基础色板 */
+  --ink-deep: #08111f;
+  --ink: #0f1a2e;
+  --indigo-deep: #14213d;
+  --indigo: #1c2a4a;
+  --indigo-light: #2c3e6b;
+  --moonglow: #6a8bbf;
+  --moon-white: #f4ecd8;
+  --moon-cream: #ede4ca;
+  --gold: #c9a96e;
+  --gold-soft: #d4b87a;
+  --gold-faint: rgba(201, 169, 110, 0.4);
+  --jade: #6b9e8a;
+
+  /* 文本层级 */
+  --text-primary: #f4ecd8;
+  --text-secondary: rgba(244, 236, 216, 0.72);
+  --text-tertiary: rgba(244, 236, 216, 0.48);
+  --text-faint: rgba(244, 236, 216, 0.28);
+
+  /* 玻璃面板 */
+  --glass-bg: rgba(244, 236, 216, 0.04);
+  --glass-bg-strong: rgba(244, 236, 216, 0.07);
+  --glass-border: rgba(201, 169, 110, 0.22);
+  --glass-border-strong: rgba(201, 169, 110, 0.42);
+
+  /* 字体 */
+  --font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
+  --font-hand: "Ma Shan Zheng", "ZCOOL XiaoWei", "Long Cang", "Noto Serif SC", serif;
+  --font-display: "ZCOOL XiaoWei", "Noto Serif SC", serif;
+  --font-mono: "JetBrains Mono", "Source Code Pro", monospace;
+}
+
+/* Reset */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+#root { position: relative; width: 100%; height: 100%; }
+body {
+  font-family: var(--font-serif);
+  background: var(--ink-deep);
+  color: var(--text-primary);
+  overflow: hidden;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  -webkit-font-smoothing: antialiased;
+}
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, textarea { font-family: inherit; color: inherit; }
+
+/* ============================================
+   背景层 —— 夜空 + 月光 + 云雾 + 星轨
+   ============================================ */
+
+.night-sky {
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -20%, rgba(106, 139, 191, 0.18), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(201, 169, 110, 0.06), transparent 70%),
+    radial-gradient(ellipse 40% 40% at 10% 30%, rgba(28, 42, 74, 0.5), transparent 60%),
+    linear-gradient(180deg, #0a1424 0%, #08111f 40%, #050a14 100%);
+}
+
+.night-sky::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, rgba(244, 236, 216, 0.7), transparent),
+    radial-gradient(1px 1px at 28% 42%, rgba(244, 236, 216, 0.5), transparent),
+    radial-gradient(1.5px 1.5px at 47% 12%, rgba(244, 236, 216, 0.9), transparent),
+    radial-gradient(1px 1px at 63% 28%, rgba(244, 236, 216, 0.6), transparent),
+    radial-gradient(1px 1px at 82% 55%, rgba(244, 236, 216, 0.7), transparent),
+    radial-gradient(2px 2px at 91% 22%, rgba(244, 236, 216, 0.9), transparent),
+    radial-gradient(1px 1px at 7% 78%, rgba(244, 236, 216, 0.5), transparent),
+    radial-gradient(1.5px 1.5px at 36% 88%, rgba(244, 236, 216, 0.8), transparent),
+    radial-gradient(1px 1px at 73% 92%, rgba(244, 236, 216, 0.6), transparent),
+    radial-gradient(1px 1px at 55% 65%, rgba(244, 236, 216, 0.4), transparent);
+  opacity: 0.85;
+  animation: twinkle 8s ease-in-out infinite;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.5; }
+}
+
+/* 宣纸噪点 */
+.paper-noise {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.96 0 0 0 0 0.92 0 0 0 0 0.85 0 0 0 0.18 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* 鼠标月晕 */
+.cursor-halo {
+  position: fixed;
+  width: 480px;
+  height: 480px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(201, 169, 110, 0.10) 0%, rgba(106, 139, 191, 0.05) 30%, transparent 70%);
+  pointer-events: none;
+  z-index: -2;
+  transform: translate(-50%, -50%);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  filter: blur(20px);
+}
+
+/* ============================================
+   通用元素
+   ============================================ */
+
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--glass-border);
+  border-radius: 4px;
+  position: relative;
+}
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(244, 236, 216, 0.05) 0%, transparent 40%, transparent 60%, rgba(201, 169, 110, 0.05) 100%);
+  pointer-events: none;
+}
+
+/* 金箔细描边 */
+.gold-frame {
+  position: relative;
+}
+.gold-frame::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border: 1px solid var(--gold-faint);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* 月相图标 */
+.moon-disc {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 35%, #fdf6e3 0%, #f4ecd8 30%, #d4b87a 60%, #8a7242 100%);
+  box-shadow:
+    0 0 60px rgba(244, 236, 216, 0.4),
+    0 0 120px rgba(201, 169, 110, 0.2),
+    inset -10px -10px 30px rgba(40, 30, 10, 0.4);
+  position: relative;
+}
+.moon-disc::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 65% 30%, rgba(0,0,0,0.06) 4%, transparent 5%),
+    radial-gradient(circle at 30% 60%, rgba(0,0,0,0.05) 3%, transparent 4%),
+    radial-gradient(circle at 50% 75%, rgba(0,0,0,0.04) 5%, transparent 6%);
+}
+
+/* 中式装饰角 —— 四角金线 */
+.corner-deco {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+  opacity: 0.55;
+}
+.corner-deco.tl { top: 10px; left: 10px; border-top: 1px solid var(--gold); border-left: 1px solid var(--gold); }
+.corner-deco.tr { top: 10px; right: 10px; border-top: 1px solid var(--gold); border-right: 1px solid var(--gold); }
+.corner-deco.bl { bottom: 10px; left: 10px; border-bottom: 1px solid var(--gold); border-left: 1px solid var(--gold); }
+.corner-deco.br { bottom: 10px; right: 10px; border-bottom: 1px solid var(--gold); border-right: 1px solid var(--gold); }
+
+/* 印章 */
+.seal {
+  display: inline-block;
+  padding: 6px 10px;
+  border: 1.5px solid #b85042;
+  color: #c75c4e;
+  font-family: var(--font-hand);
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  background: rgba(184, 80, 66, 0.05);
+  transform: rotate(-3deg);
+  border-radius: 2px;
+}
+
+/* 按钮基底 */
+.btn-ink {
+  padding: 14px 36px;
+  background: transparent;
+  border: 1px solid var(--gold);
+  color: var(--moon-white);
+  font-family: var(--font-serif);
+  font-size: 15px;
+  letter-spacing: 0.3em;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s ease;
+  white-space: nowrap;
+}
+.btn-ink::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--gold) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+.btn-ink:hover { color: var(--ink); border-color: var(--gold-soft); }
+.btn-ink:hover::before { opacity: 1; }
+.btn-ink > span { position: relative; z-index: 1; }
+
+/* 文字描金渐变 */
+.text-gold {
+  background: linear-gradient(135deg, var(--gold-soft) 0%, var(--moon-white) 50%, var(--gold) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(201, 169, 110, 0.3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(201, 169, 110, 0.5); }
+
+/* 防止内容意外横向溢出 */
+.no-x-scroll { overflow-x: hidden; }
+
+/* ============================================
+   入场动画
+   ============================================ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes wordIn {
+  from { opacity: 0; filter: blur(8px); transform: translateY(6px); }
+  to   { opacity: 1; filter: blur(0); transform: translateY(0); }
+}
+@keyframes breath {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50%      { transform: scale(1.04); opacity: 1; }
+}
+@keyframes float-up {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(-12px); }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes drift {
+  0%   { transform: translate(0, 0); }
+  50%  { transform: translate(8px, -4px); }
+  100% { transform: translate(0, 0); }
+}
+
+/* 飞蛾 —— 横向飘 + 上下颤 */
+@keyframes moth-fly {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  5%   { opacity: 0.7; }
+  25%  { transform: translate(28vw, -18px); }
+  50%  { transform: translate(55vw, 22px); }
+  75%  { transform: translate(82vw, -14px); }
+  95%  { opacity: 0.7; }
+  100% { transform: translate(110vw, 8px); opacity: 0; }
+}
+
+/* 流星 */
+@keyframes meteor-fall {
+  0%   { width: 0; opacity: 0; }
+  15%  { opacity: 1; }
+  60%  { width: 220px; }
+  100% { width: 0; opacity: 0; transform: translate(-180px, 90px) rotate(var(--meteor-rot, 30deg)); }
+}
+
+/* 点击涟漪 */
+@keyframes ripple {
+  0%   { width: 0; height: 0; opacity: 1; }
+  100% { width: 120px; height: 120px; opacity: 0; }
+}
+
+/* 情绪气场缓慢呼吸 */
+@keyframes moodPulse {
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
+}
+
+/* 意象漂浮上升 */
+@keyframes symbol-rise {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  10%  { opacity: 0.07; }
+  90%  { opacity: 0.05; }
+  100% { transform: translate(-40px, -130vh); opacity: 0; }
+}
+
+/* 印章落下 */
+@keyframes seal-drop {
+  0%   { transform: scale(2) rotate(-3deg); opacity: 0; }
+  60%  { transform: scale(0.9) rotate(-3deg); opacity: 1; }
+  80%  { transform: scale(1.05) rotate(-3deg); }
+  100% { transform: scale(1) rotate(-3deg); opacity: 1; }
+}
+
+.fade-in-up { animation: fadeInUp 1s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.fade-in    { animation: fadeIn 1.2s ease both; }
+
+.verse-line {
+  font-family: var(--font-hand);
+  font-size: 22px;
+  line-height: 1.9;
+  letter-spacing: 0.12em;
+  color: var(--moon-cream);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* ============================================
+   主题色变量切换（被 Tweaks 控制）
+   ============================================ */
+[data-theme="moonglow"] { /* 默认：月光琉璃 */ }
+[data-theme="dawn"] {
+  --indigo-deep: #2a2538;
+  --indigo: #3d3552;
+  --gold: #d4a574;
+  --gold-soft: #e8c499;
+  --moonglow: #c89aaa;
+}
+[data-theme="forest"] {
+  --indigo-deep: #1a2922;
+  --indigo: #243d33;
+  --gold: #b8a070;
+  --gold-soft: #d4c089;
+  --moonglow: #7fa896;
+  --jade: #4a8a76;
+}
+[data-theme="ember"] {
+  --indigo-deep: #1f1418;
+  --indigo: #3d1f25;
+  --gold: #d68f5c;
+  --gold-soft: #e8a878;
+  --moonglow: #b87a6e;
+}
+
+[data-theme="dawn"] .night-sky {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -20%, rgba(200, 154, 170, 0.18), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(212, 165, 116, 0.06), transparent 70%),
+    linear-gradient(180deg, #1a1424 0%, #15101e 40%, #0a0612 100%);
+}
+[data-theme="forest"] .night-sky {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -20%, rgba(127, 168, 150, 0.18), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(184, 160, 112, 0.06), transparent 70%),
+    linear-gradient(180deg, #0e1a14 0%, #0a140f 40%, #06100a 100%);
+}
+[data-theme="ember"] .night-sky {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -20%, rgba(184, 122, 110, 0.18), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(214, 143, 92, 0.10), transparent 70%),
+    linear-gradient(180deg, #1a0d10 0%, #14080c 40%, #0a0408 100%);
+}
