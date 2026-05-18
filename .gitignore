@@ -1,6 +1,9 @@
 # 敏感信息 — API Key 绝对不能上传
 backend/.env
 
+# SQLite 管理日志（Render Free 重启会清空，本地也不进 git）
+backend/data/
+
 # Python
 __pycache__/
 *.py[cod]

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>夜语 · 管理后台</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #0c1322;
+    color: #e8d5a0;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-weight: 300; letter-spacing: 0.3em; margin: 0 0 8px; }
+  .sub { color: #6a8bbf; font-size: 13px; letter-spacing: 0.2em; margin-bottom: 32px; }
+
+  .auth, .bar {
+    background: rgba(106, 139, 191, 0.08);
+    border: 1px solid rgba(232, 213, 160, 0.15);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  input[type="password"], input[type="text"] {
+    flex: 1; min-width: 240px;
+    background: #0c1322;
+    border: 1px solid rgba(232, 213, 160, 0.3);
+    color: #e8d5a0;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-family: monospace;
+  }
+  button {
+    background: rgba(232, 213, 160, 0.15);
+    border: 1px solid rgba(232, 213, 160, 0.4);
+    color: #e8d5a0;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0.1em;
+    transition: all 0.2s;
+  }
+  button:hover { background: rgba(232, 213, 160, 0.3); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.danger { color: #d68f8f; border-color: rgba(214, 143, 143, 0.5); }
+
+  .stats { color: #9bb0c4; font-size: 14px; }
+  .err { color: #d68f8f; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(106, 139, 191, 0.15); font-size: 14px; }
+  th { color: #6a8bbf; font-weight: normal; letter-spacing: 0.1em; }
+  tr.row:hover { background: rgba(232, 213, 160, 0.04); cursor: pointer; }
+  td.text { max-width: 460px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #c8c0a0; }
+  td.title { color: #d4b87a; }
+  td.tag { font-family: monospace; font-size: 12px; color: #9bb0c4; }
+
+  .detail {
+    background: rgba(106, 139, 191, 0.06);
+    border: 1px solid rgba(232, 213, 160, 0.15);
+    border-radius: 8px;
+    padding: 24px;
+    margin-top: 24px;
+    display: none;
+  }
+  .detail.show { display: block; }
+  .detail h2 { color: #d4b87a; margin: 0 0 16px; font-weight: 400; }
+  .detail .field { margin-bottom: 14px; }
+  .detail .field-label { color: #6a8bbf; font-size: 12px; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 4px; }
+  .detail pre { background: #0c1322; padding: 14px; border-radius: 6px; overflow: auto; color: #c8c0a0; font-size: 13px; max-height: 400px; }
+  .detail .dream-text { white-space: pre-wrap; background: rgba(232, 213, 160, 0.05); padding: 14px; border-radius: 6px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <h1>夜语 · 管理后台</h1>
+  <div class="sub">DREAMS · LOG</div>
+
+  <!-- 鉴权区 -->
+  <div class="auth" id="auth-bar">
+    <input type="password" id="token-input" placeholder="粘贴 ADMIN_TOKEN" autocomplete="off" />
+    <button id="btn-save">保存并加载</button>
+    <button class="danger" id="btn-clear" style="display:none">退出</button>
+  </div>
+
+  <!-- 工具栏 -->
+  <div class="bar" id="tool-bar" style="display:none">
+    <span class="stats" id="stats">—</span>
+    <button id="btn-refresh">刷新 ↻</button>
+    <span style="flex:1"></span>
+    <input type="text" id="filter" placeholder="按文本筛选（前端过滤）" style="max-width:300px" />
+  </div>
+
+  <!-- 错误提示 -->
+  <div id="msg" class="err" style="margin: 12px 0; min-height: 20px;"></div>
+
+  <!-- 列表 -->
+  <table id="tbl" style="display:none">
+    <thead>
+      <tr>
+        <th style="width:60px">#</th>
+        <th style="width:170px">时间 (UTC)</th>
+        <th style="width:120px">用户</th>
+        <th style="width:120px">IP</th>
+        <th style="width:80px">风格</th>
+        <th>梦境（前 80 字）</th>
+        <th style="width:140px">AI 标题</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+  <!-- 详情区 -->
+  <div class="detail" id="detail"></div>
+</div>
+
+<script>
+const STORAGE_KEY = "yy_admin_token";
+
+function getToken() { return localStorage.getItem(STORAGE_KEY) || ""; }
+function setToken(t) { localStorage.setItem(STORAGE_KEY, t); }
+function clearToken() { localStorage.removeItem(STORAGE_KEY); }
+
+function setMsg(text, ok = false) {
+  const el = document.getElementById("msg");
+  el.textContent = text || "";
+  el.className = ok ? "" : "err";
+}
+
+async function fetchJson(path) {
+  const token = getToken();
+  if (!token) throw new Error("未设置 token");
+  const res = await fetch(path, { headers: { "Authorization": "Bearer " + token } });
+  if (res.status === 403) throw new Error("token 错误或未授权（403）");
+  if (res.status === 503) throw new Error("后端未配置 ADMIN_TOKEN 环境变量（503）");
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  return res.json();
+}
+
+let ALL_ITEMS = [];
+
+function renderTable(items) {
+  const tbody = document.getElementById("tbody");
+  tbody.innerHTML = "";
+  for (const it of items) {
+    const tr = document.createElement("tr");
+    tr.className = "row";
+    tr.onclick = () => loadDetail(it.id);
+    tr.innerHTML = `
+      <td>${it.id}</td>
+      <td class="tag">${(it.created_at || "").replace("T", " ").replace("Z", "")}</td>
+      <td class="tag">${(it.user_id || "-").slice(0, 16)}</td>
+      <td class="tag">${it.client_ip || "-"}</td>
+      <td class="tag">${it.style || "-"}</td>
+      <td class="text" title="${escapeHtml(it.dream_text || "")}">${escapeHtml((it.dream_text || "").slice(0, 80))}</td>
+      <td class="title">${escapeHtml(it.ai_title || "")}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+async function loadList() {
+  setMsg("加载中…");
+  try {
+    const data = await fetchJson("/api/admin/dreams?limit=500");
+    ALL_ITEMS = data.items || [];
+    document.getElementById("stats").textContent = `共 ${data.total} 条，已加载 ${data.returned} 条`;
+    document.getElementById("tbl").style.display = "";
+    renderTable(ALL_ITEMS);
+    setMsg("");
+  } catch (e) {
+    setMsg(e.message);
+  }
+}
+
+async function loadDetail(id) {
+  setMsg("载入详情…");
+  try {
+    const it = await fetchJson("/api/admin/dream/" + id);
+    const ai = it.ai_response || {};
+    document.getElementById("detail").className = "detail show";
+    document.getElementById("detail").innerHTML = `
+      <h2>#${it.id} · ${escapeHtml(it.ai_title || "(无标题)")}</h2>
+      <div class="field">
+        <div class="field-label">时间 / 用户 / IP / 风格</div>
+        <div class="tag">${escapeHtml(it.created_at)} · ${escapeHtml(it.user_id || "-")} · ${escapeHtml(it.client_ip || "-")} · ${escapeHtml(it.style || "-")}</div>
+      </div>
+      <div class="field">
+        <div class="field-label">用户输入的梦境</div>
+        <div class="dream-text">${escapeHtml(it.dream_text)}</div>
+      </div>
+      <div class="field">
+        <div class="field-label">AI 返回（完整 JSON）</div>
+        <pre>${escapeHtml(JSON.stringify(ai, null, 2))}</pre>
+      </div>
+    `;
+    document.getElementById("detail").scrollIntoView({ behavior: "smooth" });
+    setMsg("");
+  } catch (e) {
+    setMsg(e.message);
+  }
+}
+
+function showAuth(authed) {
+  document.getElementById("btn-clear").style.display = authed ? "" : "none";
+  document.getElementById("token-input").style.display = authed ? "none" : "";
+  document.getElementById("btn-save").style.display = authed ? "none" : "";
+  document.getElementById("tool-bar").style.display = authed ? "flex" : "none";
+  if (!authed) {
+    document.getElementById("tbl").style.display = "none";
+    document.getElementById("detail").className = "detail";
+  }
+}
+
+document.getElementById("btn-save").onclick = () => {
+  const t = document.getElementById("token-input").value.trim();
+  if (!t) { setMsg("token 不能为空"); return; }
+  setToken(t);
+  showAuth(true);
+  loadList();
+};
+
+document.getElementById("btn-clear").onclick = () => {
+  clearToken();
+  document.getElementById("token-input").value = "";
+  showAuth(false);
+  setMsg("已退出");
+};
+
+document.getElementById("btn-refresh").onclick = loadList;
+
+document.getElementById("filter").oninput = (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  if (!q) { renderTable(ALL_ITEMS); return; }
+  renderTable(ALL_ITEMS.filter(it =>
+    (it.dream_text || "").toLowerCase().includes(q) ||
+    (it.ai_title || "").toLowerCase().includes(q) ||
+    (it.user_id || "").toLowerCase().includes(q)
+  ));
+};
+
+// 启动：如果 localStorage 已有 token，直接加载
+if (getToken()) {
+  showAuth(true);
+  loadList();
+} else {
+  showAuth(false);
+}
+</script>
+
+</body>
+</html>

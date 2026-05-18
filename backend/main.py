@@ -9,18 +9,23 @@
 """
 
 import json
+import logging
 import os
 import random
 import re
+import sqlite3
 from datetime import date, datetime
+from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
+LOGGER = logging.getLogger("yeyu")
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
@@ -39,6 +44,62 @@ DEEPSEEK_API_KEY  = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 DEEPSEEK_MODEL    = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 MOCK_MODE         = not DEEPSEEK_API_KEY
+
+# ── 管理员日志数据库（SQLite，重启会清空）────────────────────────────
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
+_DB_DIR  = Path(os.path.dirname(__file__)) / "data"
+_DB_PATH = _DB_DIR / "dreams.db"
+
+
+def _init_db() -> None:
+    _DB_DIR.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(_DB_PATH) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS dreams (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at   TEXT    NOT NULL,
+                user_id      TEXT,
+                client_ip    TEXT,
+                style        TEXT,
+                dream_text   TEXT    NOT NULL,
+                ai_title     TEXT,
+                ai_response  TEXT
+            )
+        """)
+        conn.commit()
+
+
+_init_db()
+
+
+def _log_dream(
+    *,
+    user_id: Optional[str],
+    client_ip: Optional[str],
+    style: str,
+    dream_text: str,
+    ai_response: dict,
+) -> None:
+    """Best-effort 写库；失败只 warning，不影响主响应。"""
+    try:
+        with sqlite3.connect(_DB_PATH) as conn:
+            conn.execute(
+                """INSERT INTO dreams
+                   (created_at, user_id, client_ip, style, dream_text, ai_title, ai_response)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    datetime.utcnow().isoformat(timespec="seconds") + "Z",
+                    (user_id or "")[:64],
+                    (client_ip or "")[:64],
+                    (style or "")[:32],
+                    dream_text[:4000],
+                    str(ai_response.get("title", ""))[:120],
+                    json.dumps(ai_response, ensure_ascii=False)[:8000],
+                ),
+            )
+            conn.commit()
+    except Exception as exc:
+        LOGGER.warning("dream log failed: %s", exc)
 
 XIANG_POOL = ["山", "河", "灯", "镜", "舟", "风", "石", "桥", "井", "火", "雪", "雾", "桃", "烛", "月"]
 LEVEL_POOL = ["上上", "上吉", "上吉", "中吉", "中吉", "中吉", "中平", "中平", "中平", "下平"]  # 偏暖
@@ -348,7 +409,7 @@ def _safe_dream(text: str, raw: dict, style: str) -> dict:
 
 
 @app.post("/api/dream")
-async def interpret_dream(req: DreamRequest):
+async def interpret_dream(req: DreamRequest, request: Request):
     style_key = STYLE_ALIAS.get(req.style or "gentle", "gentle")
     style_name = {"gentle": "温柔派", "sharp": "锐利派", "mystic": "玄学派", "modern": "现代派"}[style_key]
     style_def  = STYLE_DEF[style_key]
@@ -366,8 +427,13 @@ async def interpret_dream(req: DreamRequest):
         symb_rule=_dream_symb_rule(style_key),
     )
 
+    user_id   = request.headers.get("x-user-id", "")
+    client_ip = (request.client.host if request.client else "") or request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+
     if MOCK_MODE:
-        return _mock_dream(req.dream, style_key, phrases, emotion)
+        result = _mock_dream(req.dream, style_key, phrases, emotion)
+        _log_dream(user_id=user_id, client_ip=client_ip, style=style_key, dream_text=req.dream, ai_response=result)
+        return result
 
     try:
         raw = await call_deepseek(SYSTEM_PROMPT, user_prompt, temperature=0.9, max_tokens=900)
@@ -377,13 +443,16 @@ async def interpret_dream(req: DreamRequest):
             # 一次轻量重试：明确告诉模型"请直接输出 JSON"
             raw2 = await call_deepseek(SYSTEM_PROMPT, user_prompt + "\n\n再次提醒：直接输出 JSON 对象，不要任何前后文。", temperature=0.85)
             data = parse_json_response(raw2)
-        return _safe_dream(req.dream, data, style_key)
+        result = _safe_dream(req.dream, data, style_key)
+        _log_dream(user_id=user_id, client_ip=client_ip, style=style_key, dream_text=req.dream, ai_response=result)
+        return result
     except HTTPException:
         raise
     except Exception as e:
         # 兜底用 mock，但仍嵌入用户具体词
         result = _mock_dream(req.dream, style_key, phrases, emotion)
         result["_error"] = str(e)[:140]
+        _log_dream(user_id=user_id, client_ip=client_ip, style=style_key, dream_text=req.dream, ai_response=result)
         return result
 
 
@@ -675,6 +744,56 @@ async def health():
         "mock_mode": MOCK_MODE,
         "model": DEEPSEEK_MODEL,
     }
+
+
+# ─────────────────────────────────────────────────────────────────
+#                  管理后台：只有持 ADMIN_TOKEN 的人能看
+# ─────────────────────────────────────────────────────────────────
+
+def _require_admin(authorization: Optional[str]) -> None:
+    if not ADMIN_TOKEN:
+        raise HTTPException(status_code=503, detail="ADMIN_TOKEN 未在后端配置")
+    expected = f"Bearer {ADMIN_TOKEN}"
+    if (authorization or "").strip() != expected:
+        raise HTTPException(status_code=403, detail="无权访问")
+
+
+@app.get("/api/admin/dreams")
+async def admin_list_dreams(
+    limit: int = 200,
+    offset: int = 0,
+    authorization: Optional[str] = Header(None),
+):
+    _require_admin(authorization)
+    limit  = max(1, min(int(limit), 1000))
+    offset = max(0, int(offset))
+    with sqlite3.connect(_DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute(
+            """SELECT id, created_at, user_id, client_ip, style, dream_text, ai_title
+               FROM dreams ORDER BY id DESC LIMIT ? OFFSET ?""",
+            (limit, offset),
+        )
+        rows = [dict(r) for r in cur.fetchall()]
+        total = conn.execute("SELECT COUNT(*) FROM dreams").fetchone()[0]
+    return {"total": total, "returned": len(rows), "items": rows}
+
+
+@app.get("/api/admin/dream/{dream_id}")
+async def admin_get_dream(dream_id: int, authorization: Optional[str] = Header(None)):
+    _require_admin(authorization)
+    with sqlite3.connect(_DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM dreams WHERE id = ?", (dream_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="not found")
+    item = dict(row)
+    # ai_response 是 JSON 字符串，解开方便前端展示
+    try:
+        item["ai_response"] = json.loads(item["ai_response"]) if item.get("ai_response") else None
+    except Exception:
+        pass
+    return item
 
 
 # 静态前端（夜语 React 原型）
